@@ -1,0 +1,406 @@
+//Bibliotecas
+#include <LiquidCrystal.h>
+#include <stdio.h>
+#include <stdlib.h>
+
+
+// *************** Declaração de variaveis e objetos *******************
+
+//display LiquidCrystal
+LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
+
+//Variaveis
+String frase = ""; 
+char tentativas [20];
+int numTenta = 0;
+int vidas = 6;
+int jog = 1;
+int acertos = 0;
+int p1W = 0;
+int p1L = 0;
+int p2W = 0;
+int p2L = 0;
+
+// struct
+typedef struct No
+{
+	char letra;
+	No* proximo;
+} NO;
+
+NO* topo = NULL;
+
+
+byte welcomeScreenPole[8] = { 0b00111,
+                              0b00101,
+                              0b00100,
+                              0b00100,
+                              0b00100,
+                              0b00100,
+                              0b00100,
+                              0b11111 };
+                          
+byte wrong1[8] = { 0b11100,
+                   0b01110,
+                   0b01110,
+                   0b00000,
+                   0b00000,
+                   0b00000,
+                   0b00000,
+                   0b00000 };
+
+byte wrong2[8] = { 0b11100,
+                   0b01110,
+                   0b01110,
+                   0b00100,
+                   0b00100,
+                   0b00100,
+                   0b00000,
+                   0b00000 };
+
+byte wrong3[8] = { 0b11100,
+                   0b01110,
+                   0b01110,
+                   0b00100,
+                   0b00111,
+                   0b00100,
+                   0b00000,
+                   0b00000 };
+
+byte wrong4[8] = { 0b11100,
+                   0b01110,
+                   0b01110,
+                   0b00100,
+                   0b11111,
+                   0b00100,
+                   0b00000,
+                   0b00000 };
+
+byte wrong5[8] = { 0b11100,
+                   0b01110,
+                   0b01110,
+                   0b00100,
+                   0b11111,
+                   0b00100,
+                   0b01000,
+                   0b01000 };
+
+byte wrong6[8] = { 0b11100,
+                   0b01110,
+                   0b01110,
+                   0b00100,
+                   0b11111,
+                   0b00100,
+                   0b01010,
+                   0b01010 };
+                   
+byte pole[8] = { 0b00111,
+                 0b00100,
+                 0b00100,
+                 0b00100,
+                 0b00100,
+                 0b00100,
+                 0b00100,
+                 0b00100 };
+
+
+// ********************************************* Setup *********************************************
+void setup() 
+{
+  
+  //Cria a forca
+  lcd.createChar(0, welcomeScreenPole);
+  
+  lcd.createChar(1, wrong1);
+  lcd.createChar(2, wrong2);
+  lcd.createChar(3, wrong3);
+  lcd.createChar(4, wrong4);
+  lcd.createChar(5, wrong5);
+  lcd.createChar(6, wrong6);
+
+  lcd.createChar(7, pole);
+  
+  //Comunicacao do serial
+  Serial.begin (9600);
+
+  // Configura linhas do LCD
+  lcd.begin(16, 2);
+  
+  //Mensagem boas vindas
+  lcd.print (" JOGO DA FORCA ");
+  
+
+  
+  lcd.setCursor(2,2);
+  lcd.print("2 JOGADORES");
+  delay (3000);
+  lcd.clear();
+}
+
+
+
+
+// ********************************************* Loop *********************************************
+void loop() 
+{
+  //Pega a frase
+  getFrase ();
+
+
+  //Tela de config
+  lcd.print("Uma letra");//Prompt
+  
+  //forca
+  lcd.setCursor (14,1);
+  lcd.print("|");
+  
+  lcd.setCursor (14,0);
+  lcd.write((uint8_t)7);
+
+  //espacos da palavra
+  lcd.setCursor(0,2);
+  for (int i = 0; i < frase.length(); i ++)
+  {
+    lcd.print("_");
+  }
+
+
+  while (vidas > 1 && acertos != frase.length())//Inicia jogo
+  {
+    //Pega a tentativa e trata ela de acordo
+    atualizaTela(correctness(getTentativa()));
+  }
+  
+  delay (400);
+  lcd.clear();
+  
+  //Troca jogadores vitoria e derrota
+  if (jog == 1)
+  {
+    if (vidas <= 1)
+    {
+      lcd.print("    PERDEU !!!    ");
+      p1L ++;
+    }
+      
+    else
+    {
+      lcd.print("    GANHOU!!!     ");
+      p1W ++;
+    }
+      
+    jog = 2;
+  }
+  
+  else
+  {
+    if (vidas <= 1)
+    {
+      lcd.print("    PERDEU !!!    ");
+      p2L ++;
+    }
+    else
+    {
+      lcd.print("    GANHOU!!!     ");
+      p2W ++;
+    }
+      
+    jog = 1;
+  }
+
+  delay (1000);
+  
+  //reseta os valores
+  frase = "";
+  numTenta = 0;
+  vidas = 6;
+  acertos = 0;
+  
+  free(topo);
+  topo = NULL;
+
+  for (int i = 0; i < 20; i ++)
+  {
+    tentativas[i] = '\0';
+  }
+
+  //Limpa tela
+  lcd.clear();
+}
+
+
+
+
+// ********************************************* getFrase *********************************************
+void getFrase ()
+{
+  //Prompt para palavra
+  lcd.print ("J");
+  lcd.print (jog);
+  lcd.print("|");
+  
+  if (jog == 1)
+  {
+    lcd.print("  W:");
+    lcd.print(p1W);
+    lcd.print("  L:");
+    lcd.print(p1L);
+  }
+  else
+  {
+    lcd.print("  W:");
+    lcd.print(p2W);
+    lcd.print("  L:");
+    lcd.print(p2L);
+  }
+  
+  lcd.setCursor(0,2);
+  lcd.print("Escreva palavra");
+  
+  while (frase.length() == 0)//Espera a frase ser inserida
+  {
+    if (Serial.available() > 0)//Se algo for inserido
+    {
+      frase = Serial.readString();
+
+      if (frase.length() > 14)//Se for muito longo
+      {
+        //Prompt para palavra pequena
+        lcd.clear();
+        lcd.print ("J");
+        lcd.print (jog);
+        lcd.print("|  Muito longa");
+
+        delay(1000);
+        lcd.clear ();
+
+        lcd.print ("J");
+        lcd.print (jog);
+        lcd.print("|  Escreva a palavra");
+        
+        frase = "";
+      } 
+    }
+  }
+
+  frase.toUpperCase();
+  lcd.clear();
+}
+
+
+
+
+// ********************************************* getTentativa *********************************************
+char getTentativa ()
+{
+  //Declaração de variáveis
+  char tentativa = '-';
+  
+  while (tentativa == '-')//Aguarda a letra ser digitada
+  {
+    if (Serial.available() > 0)//Se algo for digitado
+    {
+      String temp = Serial.readString();
+      temp.toUpperCase();
+      tentativa = temp.charAt(0);
+    }
+  }
+  
+  return tentativa;
+}
+
+
+
+// ********************************************* correctness *********************************************
+int correctness (char tentativa)
+{
+  // Verificar se a letra já foi digitada anteriormente
+  NO* atual = topo;
+  
+  while(atual != NULL){
+    if(atual -> letra == tentativa){
+    	return 0; // Letra repetida
+    }
+    atual = atual -> proximo;
+  }
+  
+  
+  // Adicionar a letra à lista encadeada
+  NO* novoNo = (NO*)malloc(sizeof(NO));
+  novoNo -> letra = tentativa;
+  novoNo -> proximo = NULL;
+  
+  if (topo == NULL) {
+    topo = novoNo;
+  } else {
+  	NO* atual = topo;
+    
+    while(atual -> proximo != NULL) {
+    	atual = atual -> proximo;
+    }
+    atual -> proximo = novoNo;
+  }
+    
+    
+  //Verificar se a frase tem a letra
+  for (int i = 0; i < frase.length(); i ++)
+  {   
+    if (frase.charAt(i) == tentativa)//If correct
+    {
+      numTenta ++;
+      tentativas [numTenta-1] = tentativa;
+      return 1;
+    }
+  }
+
+  //Se estiver errado
+  vidas --;
+  numTenta ++;
+  tentativas [numTenta-1] = tentativa;
+  
+  return -1;
+  
+}
+
+
+
+
+// ********************************************* atualizaTela *********************************************
+void atualizaTela (int code)
+{  
+  if (code == 0)//Repeticao de letra
+  {
+    for (int i = 0; i < 3; i ++)
+    {
+      lcd.setCursor(0,0);
+      lcd.print("    REPITA    ");
+      delay(200);
+      lcd.setCursor(0,0);
+      lcd.print("              ");
+      delay(200);
+    }
+    
+    lcd.setCursor(0,0);
+    lcd.print("Uma letra");//Prompt
+  }
+  
+  if (code == 1)//Letra correta
+  {
+    for (int i = 0; i < frase.length(); i ++)
+    {
+      if (frase.charAt(i) == tentativas [numTenta-1])
+      {
+        acertos ++;
+        lcd.setCursor(i,1);
+        lcd.print(tentativas [numTenta-1]);
+      }
+    }
+    
+  }
+
+  if (code == -1)//Letra incorreta
+  {
+    lcd.setCursor(15,0);
+    lcd.write((uint8_t)(7-vidas));
+  }
+}
